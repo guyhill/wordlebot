@@ -97,29 +97,31 @@ int find_largest_remainder(char *guess, char *wordlist, char *active) {
 }
 
 
-char *find_best_guess(char *wordlist, char *active) {
-
-    int min_max_count = 1000000;
-    char *best_guess = NULL;
-
-    for (char *guess = wordlist; *guess; guess += 5) {
-        int max_count = find_largest_remainder(guess, wordlist, active);
-        if (max_count < min_max_count) {
-            min_max_count = max_count;
-            best_guess = guess;
-        }
-    }
-
-    return best_guess;
-}
-
-
 void print_guess(char *guess) {
 
     for (int i=0; i<5; i++) {
         printf("%c", guess[i]);
     }
     printf("\n");
+}
+
+
+char *find_best_guess(char *wordlist, char *active) {
+
+    int min_max_count = 1000000, i;
+    char *best_guess = NULL, *guess;
+
+    for (guess = wordlist, i = 0; *guess; guess += 5, i++) {
+        int max_count = find_largest_remainder(guess, wordlist, active);
+        if (max_count < min_max_count || (max_count == min_max_count && active[i])) {
+            // Favour words that have smaller remaining number of active words,
+            // But for words with the same remaining number of active words, favour words that are themselves active
+            min_max_count = max_count;
+            best_guess = guess;
+        }
+    }
+
+    return best_guess;
 }
 
 
@@ -176,19 +178,6 @@ int scan_match() {
 }
 
 
-char *find_first_active(char *wordlist, char *active) {
-
-    int i;
-    char *word;
-    for (word = wordlist, i = 0; *word; word += 5, i++) {
-        if (active[i]) {
-            return word;
-        }
-    }
-    return NULL;
-}
-
-
 int count_active(char *active, int n_words) {
 
     int sum = 0;
@@ -208,18 +197,14 @@ int main(int argc, char **argv) {
     for (int i=0; i<n_words; i++) {
         active[i] = 1;
     }
-
+   
     for (;;) {
         char *best_guess;
         int n_active = count_active(active, n_words);
         print_active_words(wordlist, active);
         printf("Number of possible words: %i\n", n_active);
         printf("I'm guessing: ");
-        if (n_active == 1) {
-            best_guess = find_first_active(wordlist, active);
-        } else {
-            best_guess = find_best_guess(wordlist, active);
-        }
+        best_guess = find_best_guess(wordlist, active);
         print_guess(best_guess);
         printf("\n");
         int result_match = scan_match();
