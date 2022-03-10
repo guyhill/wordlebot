@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <string.h>
 
+#define DEBUG 1
 
 long filelen(FILE *f) {
     long cur, len;
@@ -16,16 +17,21 @@ long filelen(FILE *f) {
 }
 
 
-char *read_wordlist(const char *fname, int *n_words) {
+char *read_wordlist(const char *fname_active, const char *fname_allowed, int *n_words_active, int *n_words) {
 
-    FILE *f = fopen(fname, "r");
+    FILE *factive = fopen(fname_active, "r");
+    FILE *fallowed = fopen(fname_allowed, "r");
 
-    long len = filelen(f);
-    char *wordlist = (char *) malloc((len + 1) * sizeof *wordlist);
-    fread(wordlist, 1, len, f);
-    wordlist[len] = '\0'; // Make it a C string
+    long len_active = filelen(factive);
+    long len_allowed = filelen(fallowed);
 
-    *n_words = len / 5;
+    char *wordlist = (char *) malloc((len_active + len_allowed + 1) * sizeof *wordlist);
+    fread(wordlist, 1, len_active, factive);
+    fread(wordlist + len_active, 1, len_allowed, fallowed);
+    wordlist[len_active + len_allowed] = '\0'; // Make it a C string
+
+    *n_words_active = len_active / 5;
+    *n_words = (len_active + len_allowed) / 5;
     return wordlist;
 }
 
@@ -114,6 +120,10 @@ char *find_best_guess(char *wordlist, char *active) {
     for (guess = wordlist, i = 0; *guess; guess += 5, i++) {
         int max_count = find_largest_remainder(guess, wordlist, active);
         if (max_count < min_max_count || (max_count == min_max_count && active[i])) {
+#if DEBUG
+            printf("%i, %i, %i: ", max_count, min_max_count, active[i]);
+            print_guess(guess);
+#endif
             // Favour words that have smaller remaining number of active words,
             // But for words with the same remaining number of active words, favour words that are themselves active
             min_max_count = max_count;
@@ -190,12 +200,12 @@ int count_active(char *active, int n_words) {
 
 int main(int argc, char **argv) {
 
-    int n_words;
-    char *wordlist = read_wordlist("wordle_words.txt", &n_words);
+    int n_words_active, n_words;
+    char *wordlist = read_wordlist("wordle_words_active.txt", "wordle_words_allowed.txt", &n_words_active, &n_words);
     
     char *active = (char *) malloc(n_words * sizeof *active);
     for (int i=0; i<n_words; i++) {
-        active[i] = 1;
+        active[i] = (i < n_words_active);
     }
    
     for (;;) {
@@ -203,16 +213,17 @@ int main(int argc, char **argv) {
         int n_active = count_active(active, n_words);
         print_active_words(wordlist, active);
         printf("Number of possible words: %i\n", n_active);
-        printf("I'm guessing: ");
+        if (n_active == 0) {
+            printf("I'm flummoxed!");
+            break;
+        }
         best_guess = find_best_guess(wordlist, active);
+        printf("I'm guessing: ");
         print_guess(best_guess);
         printf("\n");
         int result_match = scan_match();
         if (result_match == 242) {
-            printf("I won!");
-            break;
-        } else if (n_active <= 1) {
-            printf("I'm flummoxed!");
+            printf("I win!");
             break;
         }
         filter_words(best_guess, result_match, wordlist, active);
