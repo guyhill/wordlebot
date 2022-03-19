@@ -1,3 +1,4 @@
-wordlebot.exe
+*.exe
+*.o
 .vscode
 old
