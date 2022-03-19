@@ -3,7 +3,10 @@
 #include <ctype.h>
 #include <string.h>
 
-#define DEBUG 1
+// LOG_LEVEL = 0 --> don't log anything except the result
+// LOG_LEVEL = 1 --> log guesses, results, number of active words
+// LOG_LEVEL = 2 --> log list of active words, best guess candidates in addition to LOG_LEVEL 1
+int LOG_LEVEL = 0;
 
 long filelen(FILE *f) {
     long cur, len;
@@ -71,8 +74,10 @@ int match_word(const char *guess, const char *target) {
 
 
 void print_match(int match) {
+    char letter[] = "BYG";
+
     for (int i=0; i<5; i++) {
-        printf("%i ", match % 3);
+        printf("%c", letter[match % 3]);
         match /= 3;
     }
     printf("\n");
@@ -120,10 +125,10 @@ char *find_best_guess(char *wordlist, char *active) {
     for (guess = wordlist, i = 0; *guess; guess += 5, i++) {
         int max_count = find_largest_remainder(guess, wordlist, active);
         if (max_count < min_max_count || (max_count == min_max_count && active[i])) {
-#if DEBUG
-            printf("%i, %i, %i: ", max_count, min_max_count, active[i]);
-            print_guess(guess);
-#endif
+            if (LOG_LEVEL > 1) {
+                printf("%i, %i, %i: ", max_count, min_max_count, active[i]);
+                print_guess(guess);
+            }
             // Favour words that have smaller remaining number of active words,
             // But for words with the same remaining number of active words, favour words that are themselves active
             min_max_count = max_count;
@@ -198,6 +203,46 @@ int count_active(char *active, int n_words) {
 }
 
 
+int solve(char *target, char *wordlist, char *active, int n_words) {
+
+    int n_guesses = 0;
+    for (;;) {
+        char *best_guess;
+        int n_active = count_active(active, n_words);
+        if (LOG_LEVEL > 1) {
+            print_active_words(wordlist, active);
+        }
+        if (LOG_LEVEL > 0) {
+            printf("Number of possible words: %i\n", n_active);
+        }
+        if (n_active == 0) {
+            return -1;
+        }
+        best_guess = find_best_guess(wordlist, active);
+        if (LOG_LEVEL > 0) {
+            printf("I'm guessing: ");
+            print_guess(best_guess);
+        }
+        n_guesses += 1;
+
+        int result_match;
+        if (target[0] == '?') {
+            result_match = scan_match();
+        } else {
+            result_match = match_word(best_guess, target);
+            if (LOG_LEVEL > 0) {
+                printf("Result: ");
+                print_match(result_match);
+            }
+        }
+        if (result_match == 242) {  
+            return n_guesses;
+        }
+        filter_words(best_guess, result_match, wordlist, active);
+    }
+}
+
+
 int main(int argc, char **argv) {
 
     int n_words_active, n_words;
@@ -207,28 +252,17 @@ int main(int argc, char **argv) {
     for (int i=0; i<n_words; i++) {
         active[i] = (i < n_words_active);
     }
-   
-    for (;;) {
-        char *best_guess;
-        int n_active = count_active(active, n_words);
-        print_active_words(wordlist, active);
-        printf("Number of possible words: %i\n", n_active);
-        if (n_active == 0) {
-            printf("I'm flummoxed!");
-            break;
-        }
-        best_guess = find_best_guess(wordlist, active);
-        printf("I'm guessing: ");
-        print_guess(best_guess);
-        printf("\n");
-        int result_match = scan_match();
-        if (result_match == 242) {
-            printf("I win!");
-            break;
-        }
-        filter_words(best_guess, result_match, wordlist, active);
+
+    char target[6];
+    printf("Target word: ");
+    scanf("%s", target);
+
+    int n_guesses = solve(target, wordlist, active, n_words);
+
+    if (n_guesses > 0) {
+        printf("I win after %i guesses!", n_guesses);
+    } else {
+        printf("I'm flummoxed!");
     }
-
-
     return EXIT_SUCCESS;
 }
