@@ -12,4 +12,4 @@ Edit: the bot has to do 3.55 guesses on average to find any word on the list of 
 
 1 guess - 1 word; 2 guesses - 67 words; 3 guesses - 970 words; 4 guesses - 1188 words; 5 guesses - 83 words
 
-Not a single word requires more than 5 guesses. This means that wordlebot can guess all words within Wordle's 6 guess limit.
+Not a single word requires more than 5 guesses. Wordlebot is therefore able to guess all words within Wordle's 6 guess limit.
